@@ -1,0 +1,310 @@
+// MIRTT WEAR — Manager PWA schema (Prisma/SQLite local mirror)
+// Mirrors the production Supabase schema (mirtt-schema.sql) entity-by-entity:
+// profiles→User, products/product_variants/product_images, orders/order_items,
+// audit_log, plus PWA-only additive tables (notifications, push subscriptions,
+// webauthn credentials, returns, order events/notes, stock movements).
+// See README → "Supabase mapping" before pointing this at production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Accounts (profiles) ─────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  fullName  String
+  role      String   @default("staff") // admin | staff
+  email     String?  @unique
+  pinHash   String? // scrypt(pin, salt) — never plaintext, never client-side
+  pinSalt   String?
+  avatar    String? // profile photo as downscaled data:image/jpeg URL (client-resized, server-capped)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  sessions      Session[]
+  credentials   WebAuthnCredential[]
+  pushSubs      PushSubscription[]
+  notifications Notification[]
+  prefs         NotificationPref?
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  jti       String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model WebAuthnCredential {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    String // base64url CBOR public key (server-side only)
+  counter      Int       @default(0)
+  transports   String? // csv: internal | hybrid | ...
+  deviceType   String? // singleDevice | multiDevice
+  name         String? // friendly device label
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+// ── Catalog ─────────────────────────────────────────────────────────────────
+
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  coverImage  String?
+  isVisible   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  category          String?
+  subcategory       String?
+  sku               String?
+  imageUrl          String?
+  price             Float    @default(0)
+  salePrice         Float?
+  discountActive    Boolean  @default(false)
+  status            String   @default("available") // available | hidden
+  isFeatured        Boolean  @default(false)
+  sizeType          String? // letters (S/M/L/XL) | numbers (28–38)
+  lowStockThreshold Int      @default(5)
+  stockTotal        Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  variants ProductVariant[]
+  images   ProductImage[]
+  items    OrderItem[]
+}
+
+model ProductVariant {
+  id                String   @id @default(cuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  colorName         String?
+  colorHex          String?
+  size              String?
+  stock             Int      @default(0)
+  sku               String?
+  lowStockThreshold Int? // per-variant override (additive extension, see README)
+  createdAt         DateTime @default(now())
+
+  movements StockMovement[]
+
+  @@index([productId, colorName, size])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  colorName String?
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// ── Orders ──────────────────────────────────────────────────────────────────
+
+model Order {
+  id               String    @id @default(cuid())
+  orderNumber      String    @unique
+  customerName     String
+  phone            String
+  email            String?
+  address          String
+  governorate      String
+  city             String
+  notes            String?
+  status           String    @default("pending") // pending|confirmed|preparing|shipped|delivered|completed|cancelled|returned
+  isRead           Boolean   @default(false)
+  labelPrintedAt   DateTime?
+  paymentMethod    String    @default("cod")
+  subtotal         Float     @default(0)
+  shippingFee      Float     @default(0)
+  shippingMethod   String    @default("standard") // standard | express
+  couponCode       String?
+  discountAmount   Float     @default(0)
+  offerDiscount    Float     @default(0)
+  offerTitles      String    @default("[]")
+  total            Float     @default(0)
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  createdAt        DateTime  @default(now())
+
+  items   OrderItem[]
+  events  OrderEvent[]
+  orderNotes   OrderNote[]
+  returns ReturnRequest[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@index([phone])
+}
+
+model OrderItem {
+  id                    String   @id @default(cuid())
+  orderId               String
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId             String?
+  product               Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId             String?
+  productNameSnapshot   String
+  colorName             String?
+  size                  String?
+  quantity              Int
+  unitPrice             Float    @default(0)
+  lineTotal             Float    @default(0)
+  createdAt             DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// Status transitions + delivery-failed records + scan history
+model OrderEvent {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type       String // status_change | delivery_failed | scanned | note_added
+  fromStatus String?
+  toStatus   String?
+  meta       String? // free JSON
+  actorId    String?
+  actorName  String?
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model OrderNote {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId     String?
+  authorName String
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+// ── Returns (NO refund-status tracking anywhere — per spec) ─────────────────
+
+model ReturnRequest {
+  id          String    @id @default(cuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason      String
+  condition   String? // pristine | used | damaged | missing_item
+  notes       String?
+  status      String    @default("requested") // requested|approved|received|restocked|rejected
+  restockedAt DateTime?
+  processedBy String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
+// ── Stock ───────────────────────────────────────────────────────────────────
+
+model StockMovement {
+  id         String   @id @default(cuid())
+  variantId  String
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  delta      Int
+  reason     String // adjust | return_restock | order_deduction
+  refType    String? // return | manual | order
+  refId      String?
+  actorId    String?
+  actorName  String?
+  createdAt  DateTime @default(now())
+
+  @@index([variantId, createdAt])
+}
+
+// ── Notifications + Push ────────────────────────────────────────────────────
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String // new_order|order_update|cancelled|failed_delivery|return_request|low_stock|out_of_stock|restocked|security|test
+  category   String // orders|delivery|returns|stock|security|system
+  title      String
+  body       String
+  entityType String? // order|product|variant|return
+  entityId   String?
+  url        String? // in-app deep link (hash route)
+  dedupeKey  String?   @unique // idempotency: one notification per business event
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, isRead, createdAt])
+}
+
+model PushSubscription {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint    String    @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  lastErrorAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model NotificationPref {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       Boolean @default(true)
+  delivery     Boolean @default(true)
+  returns      Boolean @default(true)
+  stock        Boolean @default(true)
+  security     Boolean @default(true) // enforced server-side for admins (never off)
+  quietEnabled Boolean @default(false)
+  quietFrom    String? // "22:00"
+  quietTo      String? // "07:00"
+}
+
+// ── Audit ───────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String?
+  action    String // login_success|login_failed|lockout|status_change|stock_adjust|return_action|credential_change|push_test|...
+  tableName String?
+  recordId  String?
+  oldValue  String? // JSON
+  newValue  String? // JSON (never credentials)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

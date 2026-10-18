@@ -1,0 +1,12 @@
+{
+  "name": "mirtt-realtime-service",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1",
+    "jose": "^6.1.0"
+  }
+}

@@ -1,0 +1,17 @@
+npm warn deprecated intersection-observer@0.10.0: The Intersection Observer polyfill is no longer needed and can safely be removed. Intersection Observer has been Baseline since 2019.
+npm warn deprecated recharts@2.15.4: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
+npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+
+added 929 packages in 20m
+npm warn allow-scripts 8 packages have install scripts not yet covered by allowScripts:
+npm warn allow-scripts   @prisma/client@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn allow-scripts   prisma@6.19.3 (preinstall: node scripts/preinstall-entry.js)
+npm warn allow-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn allow-scripts   unrs-resolver@1.12.2 (postinstall: node postinstall.js)
+npm warn allow-scripts   @parcel/watcher@2.6.0 (install: node scripts/build-from-source.js)
+npm warn allow-scripts   @swc/core@1.16.18 (postinstall: node postinstall.js)
+npm warn allow-scripts   @prisma/engines@6.19.3 (postinstall: node scripts/postinstall.js)
+npm warn allow-scripts   es5-ext@0.10.64 (postinstall:  node -e "try{require('./_postinstall')}catch(e){}" || exit 0)
+npm warn allow-scripts
+npm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.
+INSTALL_EXIT=0 

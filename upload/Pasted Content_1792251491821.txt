@@ -1,0 +1,890 @@
+# MASTER PROMPT — Secure Manager PWA for a Clothing Brand
+
+## 1. Project Objective
+
+Build a complete, production-ready, mobile-first Progressive Web App (PWA) that serves as the mobile version of my existing clothing brand's Manager/Admin dashboard.
+
+The application must preserve the existing brand identity, reuse the current backend and database, synchronize with the existing website and Manager dashboard, enforce secure role-based permissions, and support real mobile push notifications.
+
+This is an extension of the existing system, not a replacement and not a separate application with duplicated data.
+
+**Mandatory first step:** Inspect the actual project before writing code. Identify the framework, application structure, database, API endpoints, authentication system, deployment setup, CSS, design tokens, fonts, logos, existing components, order workflow, inventory logic, QR and serial-code formats, and notification infrastructure.
+
+Do not assume the project uses Firebase, Supabase, or any other particular technology. Detect the actual stack and choose a compatible implementation.
+
+Do not stop after creating a mockup or a plan. Implement the functionality supported by the project, test it, and document any remaining external configuration.
+
+---
+
+## 2. Preserve the Existing Manager Design
+
+The PWA must look like the current Manager dashboard.
+
+Reuse the existing:
+- Logo and brand assets.
+- Fonts and font files.
+- Colors and design tokens.
+- Buttons, cards, forms, tables, badges, and icons.
+- Borders, shadows, radii, spacing, and typography.
+- Navigation structure and established interaction patterns.
+
+Do not invent a new brand identity, use a generic admin template, or change the existing visual language without a clear technical reason.
+
+Adapt the interface to mobile screens while maintaining the original design. Convert wide desktop tables into compact, readable mobile cards or lists when necessary.
+
+Provide responsive navigation, touch-friendly controls, accessible labels, readable text, and support for mobile safe areas.
+
+Use the existing brand assets rather than creating substitute logos or fonts.
+
+---
+
+## 3. PWA Installation and Offline Behavior
+
+Implement a complete installable PWA with:
+- A valid web app manifest.
+- Application name, icons, theme color, and background color.
+- A correctly registered service worker.
+- Responsive layouts for mobile and desktop.
+- Secure HTTPS deployment.
+- Deep links to individual orders, products, and notifications.
+- Appropriate caching for static, non-sensitive application assets.
+- Clear online/offline status indicators.
+- Loading, empty, error, and retry states.
+
+Support installation on compatible Android browsers and iOS/iPadOS Home Screen web apps where available.
+
+Offline behavior must be safe. Do not claim a write operation succeeded until the backend confirms it. If offline changes are supported, queue them explicitly, show their pending status, and safely reconcile them when connectivity returns.
+
+Prevent duplicate orders, inventory changes, and status transitions during retries.
+
+Never cache sensitive customer records, authentication responses, or privileged administrative data in a public service-worker cache.
+
+If the project is deployed on GitHub Pages, configure the correct base path and routing. Do not assume GitHub Pages can execute backend code or host a private database.
+
+---
+
+## 4. Authentication and Initial Role PINs
+
+The requested initial access codes are:
+
+- Admin PIN: `2026`
+- Staff PIN: `20060`
+
+Configure these as initial credentials only, using a secure server-side provisioning mechanism compatible with the existing authentication architecture.
+
+Never hardcode these PINs in public JavaScript, HTML, frontend environment variables, public source maps, or the GitHub repository.
+
+### Authentication requirements
+
+- Verify credentials on the server or through a trusted authentication provider.
+- If implementing custom PIN authentication, use a modern password-hashing algorithm such as Argon2id with a unique random salt.
+- Never store plaintext PINs or log credentials.
+- Apply server-side rate limiting, increasing delays, and temporary lockouts for repeated failed attempts.
+- Use generic login errors that do not reveal account details.
+- Provide secure session expiration, logout, and revocation.
+- Revoke affected sessions when credentials or permissions change.
+- Require stronger authentication or re-authentication for sensitive administrator actions where supported.
+- Never reset the credentials automatically every time the app starts.
+- Do not expose the Admin PIN through API responses or frontend code.
+
+Because these PINs are short, hashing alone is not sufficient. Prefer individual staff accounts and stronger administrator authentication if the current system supports them. If shared PIN access is retained, treat it as a restricted entry mechanism rather than the only protection for sensitive administrator operations.
+
+If the initial PINs have already been exposed publicly, replace them before production deployment.
+
+---
+
+## 5. Admin and Staff Permissions
+
+Enforce role-based access control on the backend, not just in the interface.
+
+### Admin
+
+Allow authorized administrators to:
+- View the dashboard and analytics.
+- Manage orders and permitted order transitions.
+- Manage products and inventory.
+- Configure stock thresholds.
+- Review and manage returns.
+- Manage notification preferences and system settings.
+- Manage staff access and permissions.
+- Review audit history and operational reports.
+- Perform other existing administrator operations supported by the current system.
+
+### Staff
+
+Allow staff to perform only approved operational tasks:
+- View permitted orders and customer information.
+- Scan parcel QR codes and serial codes.
+- Perform authorized delivery and order-status operations.
+- Add operational notes.
+- Contact customers.
+- View products and stock information.
+- Process permitted return-related operations.
+
+Staff must not be able to:
+- Change their own role.
+- Grant themselves administrator access.
+- Change Admin credentials or permissions.
+- Access restricted system settings.
+- Modify protected financial, inventory, or order fields.
+- Bypass permissions by manually calling an API.
+
+### Mandatory authorization rules
+
+- Deny access by default when permissions are absent or uncertain.
+- Validate the authenticated user and requested action on every protected endpoint.
+- Never trust role names, user IDs, or permissions supplied by the client.
+- Never use localStorage, sessionStorage, hidden buttons, or frontend route guards as the sole authorization mechanism.
+- Verify access to each specific order, customer, product, or resource.
+- Use row-level security or equivalent database access policies when supported.
+- Follow least-privilege principles.
+
+---
+
+## 6. Secure Backend and Database
+
+Reuse the existing authoritative backend and database. Do not create a separate database or maintain independent copies of orders, customers, products, or inventory.
+
+Before changing the system, map its entities, relationships, API endpoints, business rules, authentication, and data flows.
+
+Security requirements:
+- Validate incoming data on the server.
+- Use safe parameterized queries or equivalent ORM protections.
+- Apply least-privilege database credentials.
+- Keep private API keys, service credentials, and push secrets on the server.
+- Restrict CORS to the required origins.
+- Use HTTPS for production.
+- Protect cookie-authenticated state-changing requests against CSRF.
+- Use appropriate session or token lifecycles.
+- Prevent mass assignment by explicitly allowing editable fields.
+- Use transactions or atomic updates for concurrent inventory and order operations.
+- Use idempotency protection for actions that may be retried.
+- Handle partial failures without leaving inventory or orders inconsistent.
+- Apply reasonable request-size limits and abuse protection.
+
+Never expose service-role keys or other privileged credentials to the browser.
+
+Do not delete existing data or break existing website and Manager functionality.
+
+Back up the database before migrations and document schema changes.
+
+---
+
+## 7. Dashboard
+
+Build a live dashboard from real backend data.
+
+Include:
+- Total orders.
+- New and pending orders.
+- Orders being processed.
+- Shipped or out-for-delivery orders where supported.
+- Delivered orders.
+- Cancelled orders.
+- Failed deliveries.
+- Return requests requiring attention.
+- Gross sales, discounts, and net revenue where supported.
+- Average order value.
+- Low-stock products.
+- Out-of-stock products.
+- Recent orders.
+- Recent operational activity.
+- Unread notifications.
+
+Provide filters for today, yesterday, the last 7 days, the last 30 days, and a custom date range.
+
+Make dashboard cards clickable so users can open the relevant filtered list.
+
+Use actual database values. Clearly distinguish revenue from profit. Only calculate profit if reliable cost and expense data exists.
+
+---
+
+## 8. Order Management
+
+### Order list
+
+Display available fields from the existing schema:
+- Order ID.
+- Customer name.
+- Customer phone.
+- Order date.
+- Order total.
+- Payment method and payment status where supported.
+- Order status.
+- Relevant product and delivery information.
+
+Provide:
+- Search by order ID.
+- Search by customer name.
+- Search by phone number.
+- Search by parcel QR identifier or serial code where applicable.
+- Filters by order status.
+- Filters by date range.
+- Payment-status filters where supported.
+- Sorting and pagination or efficient incremental loading.
+
+### Mandatory filter removal
+
+**Remove the Shipping Company filter completely from the PWA.**
+
+Do not display it in the filter panel or as a search criterion.
+
+Do not delete shipping-company information from existing order records or break other website and Manager functionality.
+
+### Order details
+
+Show relevant customer, product, variant, quantity, pricing, discount, payment, delivery, status, note, and history information available in the existing schema.
+
+Allow only authorized edits. Validate each change on the server and record important changes in the audit history.
+
+All updates must synchronize through the existing backend with the website and Manager.
+
+Prevent invalid status transitions and duplicate submissions.
+
+---
+
+## 9. Parcel QR Scanner
+
+Implement a mobile camera-based scanner for delivery and order operations.
+
+Features:
+- Request camera permission appropriately.
+- Prefer the rear camera where supported.
+- Support flashlight control where available.
+- Provide manual code entry.
+- Validate the QR code and resolve the corresponding record through the backend.
+- Use the existing QR format where possible.
+- Prefer opaque, stable identifiers rather than exposing personal or sensitive information in QR payloads.
+- Open the correct order details.
+- Show clear success, invalid-code, and not-found states.
+- Prevent duplicate scans and repeated operations.
+- Display the last result and allow the next scan.
+
+### Delivery actions
+
+Scanning a parcel must not automatically mark it as delivered.
+
+After scanning, show the matching order, its current status, and the available authorized actions. Require explicit confirmation before applying a status transition.
+
+Support existing business operations such as:
+- Mark as delivered.
+- Record failed delivery.
+- Record a return or return request.
+- Add a delivery note.
+- Contact the customer.
+- Open the full order.
+
+Validate every transition against the existing workflow. Record the responsible user and timestamp where supported.
+
+---
+
+## 10. Serial-Code Scanner
+
+Implement a separate scanner for serial codes.
+
+Inspect the existing serial-code format before deciding which entity it identifies. Do not assume a serial code and parcel QR code are interchangeable.
+
+The scanner must:
+- Use the camera where supported.
+- Accept manual entry.
+- Resolve the correct product, variant, item, order, or shipment using the existing data model.
+- Display relevant product, SKU, size, color, quantity, and stock information.
+- Allow only permitted edits.
+- Show relevant notes and history where supported.
+- Handle unknown and invalid codes gracefully.
+- Prevent duplicate operations.
+
+---
+
+## 11. Customer Communication
+
+Add contextual communication actions on order screens.
+
+### WhatsApp
+
+- Open the customer's WhatsApp conversation using the normalized phone number and official click-to-chat URL format.
+- Provide editable message templates for order confirmation, delivery coordination, failed delivery, return coordination, and customer support.
+- Validate phone numbers and handle missing details.
+
+### Phone
+
+Provide a tap-to-call link where supported.
+
+Opening WhatsApp does not mean a message was sent. Automated sending requires a properly authorized WhatsApp Business API integration.
+
+Never send customer data to unauthorized recipients.
+
+---
+
+## 12. Returns Management
+
+Keep returns management but completely remove refund-status tracking from the PWA.
+
+Do not implement or display:
+- Refund-status fields.
+- Refund-status filters.
+- Refund-status badges.
+- Refund-status cards.
+- Refund-status notifications.
+- New refund-status workflows or operations.
+
+Do not delete existing refund records or modify the website or desktop Manager's existing refund functionality.
+
+### Return operations
+
+Support existing return-related workflows:
+- Record a return request.
+- Record the return reason.
+- Link the return to the original order and item.
+- Record the received product's condition.
+- Add notes.
+- Track existing return-processing steps.
+- Determine restocking eligibility.
+- Update inventory using the existing inventory rules.
+- Record relevant timestamps and the responsible user.
+
+Prevent duplicate returns and duplicate stock increases. Enforce administrator approval where required by the existing business rules.
+
+Existing historical refund data may be used in financial calculations when required by the current accounting model, but refund-status tracking must remain absent from the PWA.
+
+---
+
+## 13. Product and Inventory Management
+
+Reuse the current product and inventory schema.
+
+Display relevant data:
+- Product name and images.
+- SKU and serial codes.
+- Sizes and colors.
+- Stock quantity.
+- Reserved stock and available-to-sell quantities if supported.
+- Units sold.
+- Inventory thresholds.
+- Low-stock and out-of-stock status.
+
+Allow permitted inventory changes based on role.
+
+Requirements:
+- Synchronize inventory with the website and Manager.
+- Use transaction-safe updates where supported.
+- Prevent negative stock and duplicate deductions.
+- Handle concurrent edits safely.
+- Reuse existing stock reservation and order-processing rules.
+- Do not invent duplicate fields or conflicting inventory logic.
+
+---
+
+## 14. Smart Stock Alerts
+
+Implement real inventory alerts based on backend state changes.
+
+Alert types:
+- Low Stock.
+- Out of Stock.
+- Restocked.
+
+Allow administrators to configure:
+- A global low-stock threshold.
+- Product-specific thresholds.
+- Variant-specific thresholds when stock is managed by size or color.
+
+Evaluate thresholds at the correct inventory level.
+
+Generate alerts when stock crosses the relevant threshold or changes state. Do not create repeated alerts on every refresh.
+
+Persist event identifiers and notification records. Deduplicate events and include the product name, variant where applicable, quantity, timestamp, and a deep link.
+
+Notify only authorized users.
+
+Examples:
+- A product falls below its configured stock threshold.
+- A variant reaches zero stock.
+- A previously unavailable variant becomes available again.
+
+---
+
+## 15. Real Mobile Push Notifications
+
+**This is a mandatory core feature. Notifications must appear in the phone's operating-system notification center, not only inside the PWA.**
+
+Where supported by the device, browser, operating system, and permission settings, notifications must work when:
+- The app is open.
+- The app is in the background.
+- The app has been closed, provided the platform supports background Web Push delivery.
+
+Do not rely on an open tab, polling, or frontend timers.
+
+### Notification events
+
+Send notifications for:
+- New orders.
+- Orders requiring action.
+- Order cancellations.
+- Important delivery-status changes.
+- Failed delivery attempts.
+- Return requests requiring attention.
+- Low stock.
+- Out of stock.
+- Restocked products.
+- Important operational errors.
+- Relevant security events requiring administrator attention.
+
+Do not send refund-status notifications.
+
+### Role-based notification routing
+
+Admin notifications may include new orders, important inventory events, operational alerts, and security events.
+
+Staff notifications must be limited to relevant assigned or authorized work, such as delivery tasks and return requests.
+
+Never deliver restricted customer or order information to unauthorized recipients.
+
+### Web Push implementation
+
+- Configure the service worker to handle push events and notification clicks.
+- Request permission only after explaining the benefit and receiving an explicit user action.
+- Implement real server-side Web Push delivery using a suitable library or the existing provider.
+- Generate and configure the necessary VAPID key pair or equivalent provider credentials.
+- Store private keys securely on the backend.
+- Store push subscriptions securely and associate them with the correct authenticated user and device.
+- Support multiple devices per user where appropriate.
+- Remove invalid or expired subscriptions.
+- Use persistent event IDs and idempotent processing to prevent duplicate notifications.
+- Add retry handling or a durable queue where appropriate.
+- Deep-link notification clicks to the relevant authenticated order, product, or operational screen.
+- Never expose push private keys, service-role credentials, or privileged secrets in frontend code.
+- Keep notification payloads minimal and avoid sensitive customer information on lock screens.
+
+### In-app notification center
+
+Provide:
+- Notification history.
+- Unread count.
+- Read and unread states.
+- Mark-as-read and mark-all-as-read actions.
+- Timestamps.
+- Relevant destination links.
+- Notification preferences.
+- Device subscription status.
+- A clear Enable Notifications button.
+- A test-notification action for authorized users.
+
+Synchronize notification state with the backend across devices.
+
+### User preferences
+
+Allow users to choose relevant notification categories and optionally configure quiet hours.
+
+Do not suppress critical security alerts in a way that leaves administrators unaware of serious account compromise.
+
+### Platform compatibility
+
+For Android, support compatible browsers and installed PWAs.
+
+For iPhone and iPad, support Web Push where the operating-system version and browser/PWA installation requirements are met. On supported systems, the user may need to add the website to the Home Screen and open the installed web app before enabling notifications.
+
+Provide clear guidance when permission is denied or the platform does not support the requested behavior.
+
+Do not claim background push works on every device until it has been tested on actual target devices.
+
+### Push notification acceptance tests
+
+Verify:
+1. A real backend event delivers a push notification to a subscribed device.
+2. Notifications arrive in the background.
+3. Closed-app delivery works where supported.
+4. Clicking a notification opens the correct authenticated destination.
+5. Unauthorized users never receive restricted notifications.
+6. Duplicate events do not create duplicate notifications.
+7. Expired subscriptions are cleaned up.
+8. Permission-denied states are handled gracefully.
+9. Notifications work over HTTPS in the deployed environment.
+10. In-app notification history remains synchronized.
+11. No refund-status notifications are generated.
+
+Do not mark the feature complete until the backend delivery infrastructure is configured and actual device testing succeeds.
+
+---
+
+## 16. Analytics and Reports
+
+Use real database data and documented calculations.
+
+### Sales
+- Gross sales.
+- Discounts.
+- Net revenue.
+- Order count.
+- Average order value.
+- Sales trends over time.
+
+### Orders and delivery
+- Order counts by status.
+- Delivery success rate.
+- Cancellation rate.
+- Return rate.
+- Failed delivery rate.
+- Average processing time when timestamps are available.
+
+Define each formula and denominator consistently with the existing business logic.
+
+### Product performance
+- Best-selling products.
+- Best-selling sizes and colors.
+- Units sold.
+- Revenue by product or variant.
+- Return rate where reliable data exists.
+- Low-stock and out-of-stock products.
+- Declining sales where enough historical data exists.
+
+### Customer performance
+- New and returning customers where reliable identifiers exist.
+- Repeat-purchase rate.
+- Average order value.
+- Purchase frequency where supported.
+
+### Reporting controls
+- Date-range filters.
+- Product and variant filters.
+- Order-status filters.
+- Responsive charts and tables.
+- CSV export for authorized users.
+
+Do not fabricate missing data. Do not label revenue as profit. Do not expose refund-status tracking in the PWA.
+
+---
+
+## 17. Audit History
+
+Record appropriate security and business events, including:
+- Successful and failed authentication attempts.
+- Permission changes.
+- Credential resets and session revocations.
+- Order-status changes.
+- Inventory adjustments.
+- Return-processing actions.
+- Sensitive administrator changes.
+- Repeated authorization failures.
+
+Record the actor, action, affected resource, timestamp, and relevant before-and-after values where appropriate.
+
+Never record PINs, passwords, access tokens, or unnecessary personal data in logs.
+
+Restrict access to audit records and protect them from unauthorized modification.
+
+---
+
+## 18. Additional Security Requirements
+
+Implement the following where compatible with the existing architecture:
+- HTTPS-only production deployment.
+- Appropriate Content Security Policy and security headers.
+- Secure session cookies or correctly managed tokens.
+- CSRF protection where applicable.
+- Input validation and output encoding.
+- Rate limiting and abuse prevention.
+- Least-privilege database access.
+- Secure handling of environment variables and secrets.
+- Safe dependency management.
+- No public exposure of privileged keys.
+- No sensitive API responses in shared caches.
+- Secure session revocation.
+- Database backups before migrations.
+- Safe credential rotation and administrator recovery procedures.
+
+Keep customer information private and minimize data exposed to each role.
+
+---
+
+## 19. Performance and Mobile UX
+
+Implement:
+- Fast initial loading.
+- Responsive layouts.
+- Touch-friendly controls.
+- Clear loading, empty, success, and error states.
+- Retry options.
+- Confirmation for sensitive operations.
+- Accessible labels and appropriate contrast.
+- Safe handling of intermittent connectivity.
+- Prevention of accidental repeated taps.
+- Correct local date, time, currency, and phone formatting based on the existing store configuration.
+
+Do not display a successful operation until the backend confirms it.
+
+---
+
+## 20. Required Testing
+
+Test the real application and backend, not just the UI.
+
+Verify that:
+1. The original website and Manager continue working.
+2. The PWA uses the same authoritative backend and database.
+3. The visual design matches the original Manager.
+4. Installation and routing work on supported devices.
+5. Admin and Staff permissions are enforced server-side.
+6. Incorrect PIN attempts are limited.
+7. Privileged credentials are not exposed publicly.
+8. Orders can be searched, filtered, and opened.
+9. The Shipping Company filter is absent from the PWA.
+10. QR scanning opens the correct order and requires confirmation before delivery updates.
+11. Serial scanning resolves the correct entity.
+12. Customer contact actions use the correct details.
+13. Return operations work without PWA refund-status tracking.
+14. Stock alerts are accurate and deduplicated.
+15. Push notifications work on configured target devices.
+16. Notifications can arrive in the background and after closure where supported.
+17. Notification click-through opens the correct destination.
+18. Inventory operations are consistent and safe against duplicate requests.
+19. Analytics use actual data and documented formulas.
+20. Unauthorized operations are rejected by the backend.
+21. Sensitive data is not exposed through public caches or notification payloads.
+22. Audit logs do not contain credentials or tokens.
+23. Existing records remain intact.
+24. Offline and network-error behavior is safe.
+
+Run appropriate automated tests, dependency checks, and security checks supported by the existing stack.
+
+---
+
+## 21. Deliverables
+
+Provide:
+- Complete working PWA source code.
+- Reused and extended backend integrations.
+- Manifest and service-worker files.
+- Secure authentication and role enforcement.
+- Database rules and any necessary safe migrations.
+- Real push-notification infrastructure.
+- Secure environment-variable and secret configuration.
+- Automated tests where supported.
+- Setup, development, build, and deployment instructions.
+- Instructions for provisioning and rotating initial credentials.
+- Push-notification setup and device-testing instructions.
+- A summary of what was reused from the original project.
+- A list of external services, credentials, or manual steps still required.
+- A final verification checklist that distinguishes implemented and tested features from features that remain unconfigured.
+
+## 22. Real-Time Synchronization — Mandatory Core Feature
+
+Implement true, bidirectional real-time synchronization between the existing website, desktop Manager/Admin dashboard, mobile PWA, backend, database, inventory, and notification center. This is mandatory. The PWA must use the existing authoritative backend and database, not a separate data store.
+
+### 22.1 Real-time data coverage
+
+Synchronize all relevant committed changes supported by the existing schema, including:
+- New orders and edits to existing orders.
+- Order status transitions, cancellations, delivery attempts, and return operations.
+- Product details, prices, images, sizes, and colors.
+- Stock quantities, reservations, available stock, and inventory adjustments.
+- Low-stock, out-of-stock, and restocked states.
+- Notification records, unread counts, and read/unread states.
+- Dashboard statistics, sales summaries, charts, and operational activity.
+- Authorized changes made by other administrators and staff members.
+- Relevant configuration or permission changes affecting the current session.
+
+Example: if an order is marked delivered in the PWA, the website and desktop Manager must reflect the committed change automatically. If stock is updated in the desktop Manager, the PWA must display the new quantity and resulting alerts. Changes must propagate in both directions.
+
+### 22.2 Choose compatible technology
+
+Inspect the current stack and reuse its real-time capabilities where possible. Choose a compatible production-ready mechanism such as WebSockets, Server-Sent Events (SSE), database change streams/subscriptions, database-triggered events, or an event-driven backend/provider.
+
+Do not introduce an unnecessary database, duplicate backend, or incompatible service. If real-time capability does not exist, implement it without breaking the website or desktop Manager.
+
+Do not use frequent full-page refreshes or aggressive polling as a substitute. Polling may be used only as a documented fallback.
+
+### 22.3 Backend is the source of truth
+
+All authoritative changes must be validated and committed by the existing backend:
+1. An authorized user submits a change.
+2. The backend validates permissions, business rules, and the current record state.
+3. The backend commits the change to the authoritative database.
+4. A reliable event is published for the committed change.
+5. Authorized connected clients receive the event.
+6. Relevant screens, counts, lists, and charts update without a full reload.
+7. The client confirms final state with the backend when necessary.
+
+Never broadcast an uncommitted change as successful. Frontend events or optimistic UI updates are not proof of a database update.
+
+### 22.4 Reliable event delivery and consistency
+
+Implement:
+- Unique event identifiers, event types, resource identifiers, timestamps, and version/sequence information where appropriate.
+- Minimal event payloads.
+- Server-side authorization for subscriptions and resource access.
+- Duplicate-event detection and safe handling of out-of-order events.
+- Detection of missed events and resynchronization.
+- A transactional outbox or equivalent durable publishing mechanism where appropriate.
+- Safe retries and idempotent processing.
+- Transactions, version checks, or optimistic concurrency controls where appropriate.
+- Protection against silently overwriting newer data.
+
+Do not create duplicate orders, inventory deductions, returns, or notifications when events are retried. Do not allow database commits to be silently separated from event publication where a durable mechanism can prevent it.
+
+### 22.5 Connection and reconnection
+
+Handle Wi-Fi/cellular switching, temporary disconnections, device sleep, browser suspension, and server restarts. Implement:
+- Clear Connected, Reconnecting, and Offline indicators.
+- Automatic reconnection with exponential backoff and jitter.
+- Authentication renewal where applicable.
+- Safe subscription restoration.
+- Event replay/cursor-based recovery where supported.
+- Backend refresh of records changed while disconnected.
+- A consistency check when the app returns to the foreground.
+- Graceful fallback when the real-time service is unavailable.
+
+Do not lose important changes because a phone was offline. Do not claim a WebSocket remains active while a mobile OS suspends the app. Use active real-time connections while the app is active and Web Push for supported background/closed-app notifications.
+
+### 22.6 Real-time UI
+
+Update only affected components when possible, without reloading the whole app:
+- Insert new orders into the correct list.
+- Update order status badges and details.
+- Update dashboard counters and sales summaries.
+- Refresh stock quantities and variant availability.
+- Display alerts when stock thresholds are crossed.
+- Update notification history and unread counts.
+- Reflect edits made by other authorized users.
+
+If another user edits a record while it is being edited locally, detect the conflict, warn the user, preserve unsaved input where possible, and prevent silent overwriting. Show when data may be stale or synchronization is unavailable.
+
+### 22.7 Real-time security
+
+Authenticate every real-time connection. Authorize subscriptions on the server and filter events by role and resource access. Never expose customer records, orders, inventory controls, or admin events to unauthorized users. Do not trust client-supplied roles or resource IDs without server validation. Revoke/disconnect subscriptions after logout, session revocation, or permission changes. Never place PINs, access tokens, or secrets in event payloads or URLs. Apply rate limits and avoid logging sensitive payloads.
+
+### 22.8 Real-time and push are separate
+
+Real-time synchronization updates active interfaces. Push notifications deliver alerts to supported devices when the app is in the background or closed. Implement both systems and coordinate them through backend events. A real-time event is not proof that a phone notification was delivered. Avoid duplicate alerts when one business event triggers both systems.
+
+### 22.9 Real-time acceptance tests
+
+Test the website, desktop Manager, and multiple PWA sessions. Verify:
+1. New website orders appear in Manager and PWA without manual refresh.
+2. Order status changes from any authorized interface update all relevant connected interfaces.
+3. Product and inventory changes propagate in both directions.
+4. Dashboard metrics and unread counts update correctly.
+5. Disconnected devices catch up after reconnecting.
+6. Duplicate and out-of-order events do not corrupt displayed state.
+7. Concurrent edits do not silently overwrite newer data.
+8. Unauthorized users cannot subscribe to restricted events.
+9. Logout/session revocation prevents further protected event access.
+10. Real-time failures do not leave records permanently inconsistent.
+11. Data remains consistent after reload and across devices.
+12. Real-time and push work as separate, coordinated systems.
+13. The backend remains the source of truth.
+
+Do not mark synchronization complete until end-to-end propagation, recovery, and authorization tests pass.
+
+## 23. Face ID / Biometric Authentication After First Login
+
+Implement secure biometric authentication for the mobile PWA so users can unlock the app with Face ID, fingerprint, or another supported device authenticator after their first successful login. Availability depends on the device, browser, operating system, and WebAuthn support.
+
+### 23.1 First login and enrollment
+
+On first launch, require the existing authorized login method and role permissions. After successful authentication:
+1. Verify the user's identity through the existing backend.
+2. Offer the option to enable biometric/passkey login on this device.
+3. Explain that biometric verification is handled by the device's authentication system.
+4. Register a WebAuthn credential/passkey through a server-verified flow.
+5. Associate the credential with the authenticated user and device/account.
+6. Confirm successful registration before enabling biometric login.
+7. Allow the user to skip setup and continue with the existing login method.
+
+Do not claim biometric login is enabled unless credential registration succeeds.
+
+### 23.2 Subsequent launches
+
+After enrollment, display a branded secure unlock screen on subsequent launches and offer biometric authentication as the primary option. Invoke the supported device authentication prompt through WebAuthn/passkeys. After successful server-side verification, establish or restore a valid backend-authenticated session and route the user to the correct dashboard with the correct role permissions.
+
+Allow the existing authorized login method as a fallback, subject to security policy. Do not require the PIN every time when biometric verification succeeds and a valid session can safely be established. Do not bypass authentication because the app was previously opened, installed, or remembered in local storage.
+
+### 23.3 Technology and platform compatibility
+
+Inspect the existing authentication architecture and integrate with it rather than creating a separate identity system. Use WebAuthn/passkeys with server-side challenge generation and verification wherever supported.
+
+Requirements:
+- Generate unpredictable, single-use server challenges.
+- Verify the challenge, origin, relying-party ID, credential ownership, and authenticator response on the server.
+- Validate credential signatures and required credential data.
+- Protect against replay attacks.
+- Apply rate limits and monitor repeated failures.
+- Use HTTPS and correctly configure the relying-party ID.
+- Follow secure WebAuthn implementation standards.
+
+Face ID/fingerprint availability varies. Do not promise every PWA/browser supports every method. Do not build custom camera-based face recognition and do not collect or store facial or fingerprint images. The device/platform handles biometric matching.
+
+### 23.4 Session and role security
+
+Biometric authentication is an additional login method, not a replacement for backend authentication or role-based authorization.
+
+- Establish a valid backend session only after successful server-side verification.
+- Apply existing Admin/Staff permissions after authentication.
+- Never store passwords, PINs, private authentication keys, or session tokens insecurely in localStorage.
+- Use secure HttpOnly, SameSite cookies where compatible.
+- Enforce session expiration and revocation.
+- Require re-authentication for sensitive actions where policy requires it.
+- Require authorized authentication before enrolling a new credential.
+- Do not allow staff to register credentials for another account.
+- Revoke sessions/credentials when access is revoked or the account is disabled, as supported.
+
+### 23.5 User controls and recovery
+
+Provide settings, where supported, to:
+- Enable or disable biometric login on the current device.
+- Register supported passkeys/authenticators.
+- View registered devices/credentials where supported.
+- Remove a credential after re-authentication.
+- Recover access through the existing authorized login method.
+
+Allow administrators to revoke credentials or sessions where supported. Provide a way to revoke a lost device's sessions/credentials without physical access to that device.
+
+### 23.6 Failure handling
+
+Handle unsupported devices, unavailable biometrics, user cancellation, failed verification, missing/invalid credentials, expired or reused challenges, network failures, backend verification failures, disabled accounts, and changed permissions. Show a clear message and offer the authorized fallback method where appropriate. Never silently log in after a failed biometric attempt or weaken security automatically.
+
+### 23.7 PWA behavior
+
+Test biometric login in the installed PWA wherever the platform supports it. Ensure reopening the app presents the correct authentication state, expired/revoked sessions require authentication, installation alone grants no access, clearing browser data does not compromise the account, and unsupported platforms have a safe fallback.
+
+Do not promise a biometric prompt will automatically appear on every launch on every platform. Implement the supported flow and test actual target devices.
+
+### 23.8 Biometric acceptance tests
+
+Verify:
+1. First login uses the existing authorized authentication method.
+2. Enrollment is offered only after successful login.
+3. Successful WebAuthn registration enables biometric login.
+4. Subsequent launches can authenticate with a supported authenticator.
+5. The backend verifies the credential and establishes the correct session.
+6. Admin and Staff permissions remain enforced.
+7. Failed or cancelled authentication never grants access.
+8. Unsupported devices use the authorized fallback.
+9. Expired/revoked sessions require re-authentication.
+10. Revoked credentials cannot authenticate.
+11. A user cannot enroll a credential for another account without authorization.
+12. Sensitive operations still require additional authentication when policy demands it.
+13. The PWA does not store biometric images, PINs, or private authentication keys.
+14. The feature works over HTTPS on actual supported target devices.
+
+Mark this feature complete only after end-to-end testing of successful authentication, permissions, failure handling, and revocation.
+
+## 24. Final Non-Negotiable Rules
+
+1. Inspect the existing project before implementing changes.
+2. Reuse the current design, backend, database, and business logic.
+3. Do not create a duplicate database.
+4. Do not delete existing records.
+5. Do not expose PINs or privileged credentials in frontend code.
+6. Enforce roles on the backend.
+7. Implement actual mobile push notifications, not just in-app alerts.
+8. Do not claim push works until the delivery infrastructure is configured and target-device tests pass.
+9. Remove the Shipping Company filter from the PWA only.
+10. Remove refund-status tracking from the PWA only.
+11. Keep return management and existing shipping information.
+12. Preserve existing website and Manager functionality.
+13. Implement the working features, test them, and document remaining manual configuration.
+
+The initial requested role PINs are Admin `2026` and Staff `20060`. Treat them as initial credentials and provision them securely. Do not expose them in public source code or leave weak credentials as the sole protection for sensitive administrator actions.
+
+The final result must be a secure, responsive, installable mobile Manager PWA with synchronized data, reliable order and inventory workflows, real phone push notifications where the platform supports them, bidirectional real-time synchronization across existing interfaces, and secure Face ID/biometric-capable login after first authentication where supported.

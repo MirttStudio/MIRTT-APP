@@ -1,0 +1,11 @@
+﻿const { PrismaClient } = require('@prisma/client')
+const db = new PrismaClient()
+;(async()=>{
+  const p = await db.product.findMany({ select: { id:true, name:true, slug:true, price:true, category:true } })
+  console.log('PRODUCTS', JSON.stringify(p,null,1))
+  const o = await db.order.findMany({ select: { orderNumber:true, customerName:true, status:true, total:true }, take: 5 })
+  console.log('ORDERS', JSON.stringify(o,null,1))
+  const u = await db.user.findMany({ select: { fullName:true, role:true, email:true } })
+  console.log('USERS', JSON.stringify(u,null,1))
+  process.exit(0)
+})()
